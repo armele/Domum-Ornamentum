@@ -22,7 +22,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
@@ -45,6 +44,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static net.minecraft.world.level.block.Blocks.STRIPPED_OAK_WOOD;
+import static net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY;
 
 public class SlabBlock extends AbstractBlockSlab<SlabBlock> implements IMateriallyTexturedBlock, EntityBlock, ICachedItemGroupBlock
 {
@@ -57,27 +57,6 @@ public class SlabBlock extends AbstractBlockSlab<SlabBlock> implements IMaterial
     public SlabBlock()
     {
         super(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).noOcclusion().strength(2.0F, 3.0F));
-    }
-
-    @Override
-    public boolean canBeReplaced(final @NotNull BlockState state, final @NotNull BlockPlaceContext lootContext)
-    {
-        if (!super.canBeReplaced(state, lootContext))
-        {
-            return false;
-        }
-
-        final BlockEntity be = lootContext.getLevel().getBlockEntity(lootContext.getClickedPos());
-        if (be instanceof MateriallyTexturedBlockEntity mtbe)
-        {
-            final CompoundTag incomingTextureDataNbt = lootContext.getItemInHand().getOrCreateTagElement("textureData");
-            final MaterialTextureData incomingTextureData = MaterialTextureData.deserializeFromNBT(incomingTextureDataNbt);
-
-            final MaterialTextureData existingTextureData = mtbe.getTextureData();
-
-            return incomingTextureData.equals(existingTextureData);
-        }
-        return false;
     }
 
     @Override
@@ -112,16 +91,37 @@ public class SlabBlock extends AbstractBlockSlab<SlabBlock> implements IMaterial
         fillItemGroupCache.clear();
     }
 
+    /**
+     * Get the drops from slab blocks.
+     * Aware of top and bottom texture data separately to enable drops of both.
+     */
     @Override
     public @NotNull List<ItemStack> getDrops(final @NotNull BlockState state, final @NotNull LootParams.Builder builder)
     {
-        final int amount = state.getValue(TYPE).equals(SlabType.DOUBLE) ? 2 : 1;
-        return BlockUtils.getMaterializedItemStack(builder, (s, e) -> s.copyWithCount(amount));
+        if (state.getValue(TYPE).equals(SlabType.DOUBLE) && builder.getOptionalParameter(BLOCK_ENTITY) instanceof MateriallyTexturedBlockEntity mtbe)
+        {
+            return Lists.newArrayList(
+              BlockUtils.getMaterializedItemStack(this, mtbe.getSlabBottomTextureData()),
+              BlockUtils.getMaterializedItemStack(this, mtbe.getSlabTopTextureData()));
+        }
+
+        return BlockUtils.getMaterializedItemStack(builder);
     }
 
+    /**
+     * Position-aware texturing of clone item stack.
+     */
     @Override
     public ItemStack getCloneItemStack(final BlockState state, final HitResult target, final BlockGetter world, final BlockPos pos, final Player player)
     {
+        if (state.getValue(TYPE).equals(SlabType.DOUBLE) && world.getBlockEntity(pos) instanceof MateriallyTexturedBlockEntity mtbe)
+        {
+            final MaterialTextureData textureData = target.getLocation().y - pos.getY() > 0.5
+                                                      ? mtbe.getSlabTopTextureData()
+                                                      : mtbe.getSlabBottomTextureData();
+            return BlockUtils.getMaterializedItemStack(this, textureData);
+        }
+
         return BlockUtils.getMaterializedItemStack(player, world, pos);
     }
 

@@ -3,19 +3,25 @@ package com.ldtteam.domumornamentum.item.vanilla;
 import com.ldtteam.domumornamentum.block.IMateriallyTexturedBlockComponent;
 import com.ldtteam.domumornamentum.block.vanilla.SlabBlock;
 import com.ldtteam.domumornamentum.client.model.data.MaterialTextureData;
+import com.ldtteam.domumornamentum.entity.block.MateriallyTexturedBlockEntity;
 import com.ldtteam.domumornamentum.item.interfaces.IDoItem;
 import com.ldtteam.domumornamentum.util.BlockUtils;
 import com.ldtteam.domumornamentum.util.Constants;
 import com.ldtteam.domumornamentum.util.MaterialTextureDataUtil;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,6 +35,51 @@ public class SlabBlockItem extends BlockItem implements IDoItem
     {
         super(blockIn, builder);
         this.slabBlock = blockIn;
+    }
+
+    @Override
+    public InteractionResult place(final BlockPlaceContext context)
+    {
+        final BlockPos pos = context.getClickedPos();
+        final Level level = context.getLevel();
+        final BlockState existingState = level.getBlockState(pos);
+        final MaterialTextureData existingTextureData;
+        final SlabType existingSlabType;
+
+        if (existingState.is(this.getBlock())
+              && existingState.hasProperty(net.minecraft.world.level.block.SlabBlock.TYPE)
+              && existingState.getValue(net.minecraft.world.level.block.SlabBlock.TYPE) != SlabType.DOUBLE
+              && level.getBlockEntity(pos) instanceof MateriallyTexturedBlockEntity mtbe)
+        {
+            existingTextureData = mtbe.getTextureData();
+            existingSlabType = existingState.getValue(net.minecraft.world.level.block.SlabBlock.TYPE);
+        }
+        else
+        {
+            existingTextureData = MaterialTextureData.EMPTY;
+            existingSlabType = null;
+        }
+
+        final MaterialTextureData incomingTextureData = MaterialTextureData.deserializeFromNBT(context.getItemInHand().getOrCreateTagElement("textureData"));
+        final InteractionResult result = super.place(context);
+
+        if (result.consumesAction()
+              && existingSlabType != null
+              && level.getBlockState(pos).is(this.getBlock())
+              && level.getBlockState(pos).getValue(net.minecraft.world.level.block.SlabBlock.TYPE) == SlabType.DOUBLE
+              && level.getBlockEntity(pos) instanceof MateriallyTexturedBlockEntity mtbe)
+        {
+            if (existingSlabType == SlabType.BOTTOM)
+            {
+                mtbe.updateSlabTextureDataWith(existingTextureData, incomingTextureData);
+            }
+            else
+            {
+                mtbe.updateSlabTextureDataWith(incomingTextureData, existingTextureData);
+            }
+        }
+
+        return result;
     }
 
     @Override

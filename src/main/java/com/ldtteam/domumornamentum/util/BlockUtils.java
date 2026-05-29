@@ -84,4 +84,18 @@ public class BlockUtils
         final T blockValue = property.getValue(itemStack.getOrCreateTag().get("type").toString().toLowerCase(Locale.ROOT).replace("\"", "")).get();
         return blockValue == null ? defaultValue : blockValue;
     }
+
+    /**
+     * Helper to create an ItemStack using the specified texture data.
+     * @param block the block for which an ItemStack shall be created
+     * @param textureData the texture to apply to that ItemStack
+     * @return
+     */
+    public static ItemStack getMaterializedItemStack(final @NotNull Block block, final @NotNull MaterialTextureData textureData)
+    {
+        final ItemStack result = new ItemStack(block);
+        final CompoundTag textureNbt = textureData.serializeNBT();
+        result.getOrCreateTag().put("textureData", textureNbt);
+        return result;
+    }
 }

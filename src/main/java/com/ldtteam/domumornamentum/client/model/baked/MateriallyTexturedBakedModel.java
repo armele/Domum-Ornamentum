@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.ChunkRenderTypeSet;
 import net.minecraftforge.client.RenderTypeGroup;
@@ -41,6 +42,8 @@ public class MateriallyTexturedBakedModel implements BakedModel {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final RandomSource RANDOM = RandomSource.create();
     private static final ChunkRenderTypeSet SOLID_ONLY = ChunkRenderTypeSet.of(RenderType.solid());
+    private static final ResourceLocation SLAB_BOTTOM_TEXTURE = new ResourceLocation("block/oak_planks");
+    private static final ResourceLocation SLAB_TOP_TEXTURE = new ResourceLocation("block/dark_oak_planks");
 
     private record BlockModelCacheKey (MaterialTextureData data, RenderType renderType) { }
 
@@ -76,7 +79,7 @@ public class MateriallyTexturedBakedModel implements BakedModel {
             return ChunkRenderTypeSet.none();
         }
 
-        final MaterialTextureData textureData = data.get(ModProperties.MATERIAL_TEXTURE_PROPERTY);
+        final MaterialTextureData textureData = getTextureDataFor(data);
         if (textureData == null) {
             return ChunkRenderTypeSet.none();
         }
@@ -207,7 +210,51 @@ public class MateriallyTexturedBakedModel implements BakedModel {
             return getBakedInnerModelFor(MaterialTextureData.EMPTY, sourceState, renderType);
         }
 
-        return getBakedInnerModelFor(modelData.get(ModProperties.MATERIAL_TEXTURE_PROPERTY), sourceState, renderType);
+        return getBakedInnerModelFor(getTextureDataFor(modelData), sourceState, renderType);
+    }
+
+    /**
+     * Helper to allow new stacked-slab functionality where it is specified
+     * while retaining backwards compatibility where it is not.
+     * @param modelData
+     * @return
+     */
+    private MaterialTextureData getTextureDataFor(final ModelData modelData)
+    {
+        if (modelData.has(ModProperties.SLAB_BOTTOM_TEXTURE_PROPERTY) && modelData.has(ModProperties.SLAB_TOP_TEXTURE_PROPERTY))
+        {
+            final Map<ResourceLocation, Block> textureData = new HashMap<>();
+            addSlabTexture(textureData, SLAB_BOTTOM_TEXTURE, modelData.get(ModProperties.SLAB_BOTTOM_TEXTURE_PROPERTY));
+            addSlabTexture(textureData, SLAB_TOP_TEXTURE, modelData.get(ModProperties.SLAB_TOP_TEXTURE_PROPERTY));
+
+            return new MaterialTextureData(textureData);
+        }
+
+        return modelData.get(ModProperties.MATERIAL_TEXTURE_PROPERTY);
+    }
+
+    /**
+     * Adds one half of a mixed double slab to the render texture remapping.
+     * The half's material is stored under the slab component's normal source key
+     * ({@code block/oak_planks}); this remaps it to the placeholder texture used
+     * by the mixed double-slab model for either the bottom or top cuboid.
+     *
+     * @param textureData output map from model placeholder texture to replacement material block
+     * @param slabTexture placeholder texture key for the slab half in the double-slab model
+     * @param halfTextureData material data for the slab half being rendered
+     */
+    private void addSlabTexture(final Map<ResourceLocation, Block> textureData, final ResourceLocation slabTexture, @Nullable final MaterialTextureData halfTextureData)
+    {
+        if (halfTextureData == null)
+        {
+            return;
+        }
+
+        final Block block = halfTextureData.getTexturedComponents().get(new ResourceLocation("block/oak_planks"));
+        if (block != null)
+        {
+            textureData.put(slabTexture, block);
+        }
     }
 
     private BakedModel getBakedInnerModelFor(final MaterialTextureData modelData, final BlockState sourceState, final RenderType renderType) {

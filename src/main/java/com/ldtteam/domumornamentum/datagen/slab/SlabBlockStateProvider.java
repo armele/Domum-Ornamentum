@@ -30,9 +30,12 @@ public class SlabBlockStateProvider extends BlockStateProvider
     private void createBlockstateFile(final SlabBlock slabBlock)
     {
         final MultiPartBlockStateBuilder builder = getMultipartBuilder(slabBlock);
-        for (SlabType value : SlabType.values()) {
+        for (SlabType value : SlabType.values()) 
+        {
+            // Reference double mixed spec model for stacked slabs
+            final String modelName = value == SlabType.DOUBLE ? "slab_double_mixed_spec" : "slab_" + value.getSerializedName() + "_spec";
             builder.part()
-              .modelFile(models().withExistingParent("block/slab/" + value.getSerializedName(), modLoc("block/slab/slab_" + value.getSerializedName() + "_spec"))
+              .modelFile(models().withExistingParent("block/slab/" + value.getSerializedName(), modLoc("block/slab/" + modelName))
                            .customLoader(MateriallyTexturedModelBuilder::new)
                            .end())
               .addModel()

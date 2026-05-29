@@ -12,4 +12,6 @@ public class ModProperties
     }
 
     public static ModelProperty<MaterialTextureData> MATERIAL_TEXTURE_PROPERTY = new ModelProperty<>();
+    public static ModelProperty<MaterialTextureData> SLAB_BOTTOM_TEXTURE_PROPERTY = new ModelProperty<>();
+    public static ModelProperty<MaterialTextureData> SLAB_TOP_TEXTURE_PROPERTY = new ModelProperty<>();
 }
